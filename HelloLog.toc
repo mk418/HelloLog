@@ -1,0 +1,15 @@
+## Interface: 11508
+## Title: HelloLog
+## Notes: Per-zone session log of loot, gold, kills, and reputation for Classic Era
+## Author: Drikk
+## Version: 0.1.0
+## SavedVariablesPerCharacter: HelloLogDB
+## X-License: MIT
+
+Core.lua
+Session.lua
+Loot.lua
+Rep.lua
+Kills.lua
+Detail.lua
+UI.lua
