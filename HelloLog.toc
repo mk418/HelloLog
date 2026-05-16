@@ -12,5 +12,6 @@ Session.lua
 Loot.lua
 Rep.lua
 Kills.lua
+Deaths.lua
 Detail.lua
 UI.lua

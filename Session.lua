@@ -40,9 +40,14 @@ local function rotateToCurrentZone()
         return
     end
     flushTime()
-    Session.current = ensureBucket(zone)
     if Session.recording then
+        Session.current = ensureBucket(zone)
         Session.lastResumeAt = time()
+    else
+        -- Idle: attach to an existing bucket for this zone if one is open
+        -- (Pause → Resume), but don't fabricate one — otherwise a full Stop
+        -- would still show "Resume" after the next zone load.
+        Session.current = HL.db.sessions[zone]
     end
 end
 
@@ -146,15 +151,41 @@ local function archiveCurrent()
     return sess
 end
 
+local function isEmpty(sess)
+    if not sess then return true end
+    if (sess.money or 0) ~= 0 then return false end
+    for _, b in pairs(sess.items or {}) do
+        if (b.count or 0) > 0 then return false end
+    end
+    for _, p in pairs(sess.perMob or {}) do
+        if (p.kills or 0) > 0 then return false end
+    end
+    for _, f in pairs(sess.factions or {}) do
+        if (f.delta or 0) ~= 0 then return false end
+    end
+    if sess.deaths and #sess.deaths > 0 then return false end
+    return true
+end
+
 function Session:Close()
-    local sess = archiveCurrent()
+    flushTime()
+    local sess = Session.current
     self.recording = false
     HL.db.state.recording = false
     HL.db.state.zone = nil
-    if sess then
-        HL:Print("ended " .. sess.zone)
-    else
+    if not sess then
         HL:Print("no open session")
+        HL.UI:Refresh()
+        return
+    end
+    local zone = sess.zone
+    if isEmpty(sess) then
+        HL.db.sessions[zone] = nil
+        Session.current = nil
+        HL:Print("discarded empty " .. zone .. " session")
+    else
+        archiveCurrent()
+        HL:Print("ended " .. zone)
     end
     HL.UI:Refresh()
 end
@@ -182,6 +213,15 @@ function Session:Reset()
         HL.db.state.zone = nil
     end
     HL:Print("reset")
+    HL.UI:Refresh()
+end
+
+function Session:DeleteHistory(index)
+    HL.db.history = HL.db.history or {}
+    local entry = HL.db.history[index]
+    if not entry then return end
+    table.remove(HL.db.history, index)
+    HL:Print("deleted " .. (entry.zone or "?") .. " session")
     HL.UI:Refresh()
 end
 

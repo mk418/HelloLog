@@ -340,6 +340,10 @@ function UI:Refresh()
                 parts[#parts + 1] = string.format("%d kills", totalKills)
             end
         end
+        local deaths = sess.deaths and #sess.deaths or 0
+        if deaths > 0 then
+            parts[#parts + 1] = string.format("|cFFFF6666%d deaths|r", deaths)
+        end
         parts[#parts + 1] = formatMoney(sess.money)
         frame.stats:SetText(table.concat(parts, "   |cFF666666\194\183|r   "))
 

@@ -10,6 +10,8 @@ local itemHeader
 local itemRows = {}
 local zoneHeader
 local zoneRows = {}
+local deathHeader
+local deathRows = {}
 local historyRows = {}
 local viewButton
 local sessionSummary
@@ -19,6 +21,7 @@ local lastViewKey
 local REP_ROW_HEIGHT = 14
 local ITEM_ROW_HEIGHT = 14
 local ZONE_ROW_HEIGHT = 14
+local DEATH_ROW_HEIGHT = 14
 local HISTORY_ROW_HEIGHT = 18
 local SECTION_GAP = 10
 local SESSION_SUMMARY_GAP = 8
@@ -352,6 +355,55 @@ local function layoutZones(visits, yStart)
     return y + SECTION_GAP
 end
 
+local function getDeathRow(i)
+    local row = deathRows[i]
+    if not row then
+        row = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        row:SetJustifyH("LEFT")
+        deathRows[i] = row
+    end
+    return row
+end
+
+local function hideDeathRows(from)
+    for i = from, #deathRows do deathRows[i]:Hide() end
+end
+
+local function layoutDeaths(deaths, yStart)
+    if #deaths == 0 then
+        if deathHeader then deathHeader:Hide() end
+        hideDeathRows(1)
+        return yStart
+    end
+
+    if not deathHeader then
+        deathHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        deathHeader:SetJustifyH("LEFT")
+    end
+    deathHeader:SetText(string.format("|cFFFF6666Deaths|r   |cFF999999(%d)|r", #deaths))
+    deathHeader:ClearAllPoints()
+    deathHeader:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yStart)
+    deathHeader:Show()
+    local y = yStart + NAME_HEIGHT + 2
+
+    for i, d in ipairs(deaths) do
+        local row = getDeathRow(i)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -y)
+        local killer = d.killer and string.format("   |cFFFF9999%s|r", d.killer) or ""
+        row:SetText(string.format(
+            "%s   %s%s",
+            date("%H:%M", d.time or 0),
+            d.zone or "?",
+            killer
+        ))
+        row:Show()
+        y = y + DEATH_ROW_HEIGHT
+    end
+    hideDeathRows(#deaths + 1)
+    return y + SECTION_GAP
+end
+
 local function layoutRows(mobs, yStart, seconds)
     local innerWidth = scrollChild:GetWidth()
     if innerWidth < 1 then innerWidth = 1 end
@@ -434,6 +486,26 @@ local function layoutRows(mobs, yStart, seconds)
     scrollChild:SetHeight(math.max(1, yCursor))
 end
 
+StaticPopupDialogs["HELLOLOG_DELETE_HISTORY"] = {
+    text = "Delete recording?\n\n%s",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self)
+        local idx = self.data and self.data.index
+        if not idx then return end
+        HL.Session:DeleteHistory(idx)
+        if viewMode == "historyDetail" then
+            viewMode = "historyList"
+            viewIndex = nil
+        end
+        HL.Detail:Refresh()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 local function getHistoryRow(i)
     local row = historyRows[i]
     if not row then
@@ -441,11 +513,26 @@ local function getHistoryRow(i)
         row:SetHeight(HISTORY_ROW_HEIGHT)
         row.text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
         row.text:SetPoint("LEFT", 4, 0)
+        row.text:SetPoint("RIGHT", -22, 0)
         row.text:SetJustifyH("LEFT")
         row.text:SetWordWrap(false)
         row.hover = row:CreateTexture(nil, "HIGHLIGHT")
         row.hover:SetAllPoints()
         row.hover:SetColorTexture(1, 1, 1, 0.08)
+
+        row.deleteBtn = CreateFrame("Button", nil, row)
+        row.deleteBtn:SetSize(16, HISTORY_ROW_HEIGHT)
+        row.deleteBtn:SetPoint("RIGHT", -2, 0)
+        row.deleteBtn.label = row.deleteBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        row.deleteBtn.label:SetPoint("CENTER")
+        row.deleteBtn.label:SetText("|cFF999999\195\151|r")
+        row.deleteBtn:SetScript("OnEnter", function(self)
+            self.label:SetText("|cFFFF6666\195\151|r")
+        end)
+        row.deleteBtn:SetScript("OnLeave", function(self)
+            self.label:SetText("|cFF999999\195\151|r")
+        end)
+
         historyRows[i] = row
     end
     return row
@@ -455,6 +542,9 @@ local function hideHistoryRows(from)
     for i = from, #historyRows do
         historyRows[i]:Hide()
         historyRows[i]:SetScript("OnClick", nil)
+        if historyRows[i].deleteBtn then
+            historyRows[i].deleteBtn:SetScript("OnClick", nil)
+        end
     end
 end
 
@@ -516,6 +606,12 @@ local function layoutHistoryList()
             viewIndex = idx
             Detail:Refresh()
         end)
+        local label = string.format("%s   %s",
+            date("%Y-%m-%d %H:%M", closed), sess.zone or "?")
+        row.deleteBtn:SetScript("OnClick", function()
+            local dlg = StaticPopup_Show("HELLOLOG_DELETE_HISTORY", label)
+            if dlg then dlg.data = { index = idx } end
+        end)
         row:Show()
         y = y + HISTORY_ROW_HEIGHT
     end
@@ -549,6 +645,10 @@ local function renderSummary(sess, seconds)
     parts[#parts + 1] = formatHMS(seconds)
     local kills = totalKillsOf(sess)
     if kills > 0 then parts[#parts + 1] = string.format("%d kills", kills) end
+    local deaths = sess.deaths and #sess.deaths or 0
+    if deaths > 0 then
+        parts[#parts + 1] = string.format("|cFFFF6666%d deaths|r", deaths)
+    end
     parts[#parts + 1] = GetCoinTextureString(sess.money or 0)
     sessionSummary:SetText(table.concat(parts, "   |cFF666666\194\183|r   "))
     sessionSummary:Show()
@@ -564,7 +664,8 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     local items = collectItemTotals(sess)
     local mobs = collectMobs(sess)
     local visits = collectZoneVisits(sess, endTimeFallback)
-    if #factions == 0 and #items == 0 and #mobs == 0 and #visits == 0 then
+    local deaths = sess.deaths or {}
+    if #factions == 0 and #items == 0 and #mobs == 0 and #visits == 0 and #deaths == 0 then
         empty:SetText("No data recorded.")
         empty:Show()
     else
@@ -572,6 +673,7 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     end
     local y = layoutRep(factions, 0, seconds)
     y = layoutZones(visits, y)
+    y = layoutDeaths(deaths, y)
     y = layoutItems(items, y, seconds)
     layoutRows(mobs, y, seconds)
 end
@@ -580,6 +682,7 @@ local function clearSessionLayout()
     hideSummary()
     layoutRep({}, 0, 0)
     layoutZones({}, 0)
+    layoutDeaths({}, 0)
     layoutItems({}, 0, 0)
     layoutRows({}, 0, 0)
 end
