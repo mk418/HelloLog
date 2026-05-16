@@ -363,9 +363,13 @@ function UI:Refresh()
         parts[#parts + 1] = formatMoney(sess.money)
         frame.stats:SetText(table.concat(parts, "   |cFF666666\194\183|r   "))
 
-        local vendor = HL.Loot:VendorValue(sess)
-        if vendor > 0 then
-            frame.vendorLine:SetText("|cFFFFCC00Vendor|r " .. formatMoney(vendor))
+        local itemsValue = HL.Loot:ItemsValue(sess)
+        if itemsValue.vendorTotal > 0 then
+            local text = "|cFFFFCC00Items value|r " .. formatMoney(itemsValue.vendorTotal)
+            if HL.Loot:HasAuctionator() and itemsValue.ahTotal and itemsValue.ahTotal > 0 then
+                text = text .. " |cFF888888(AH " .. formatMoney(itemsValue.ahTotal) .. ")|r"
+            end
+            frame.vendorLine:SetText(text)
             frame.vendorLine:Show()
         else
             frame.vendorLine:SetText("")

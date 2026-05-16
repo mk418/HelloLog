@@ -93,26 +93,62 @@ function Loot:SellPrice(bucket)
     return ensureSellPrice(bucket)
 end
 
-function Loot:VendorBreakdown(sess)
-    local total, byQuality = 0, {}
-    if not sess or not sess.items then return total, byQuality end
-    for _, bucket in pairs(sess.items) do
-        local q = bucket.quality or 1
-        if q <= 2 then
-            local price = ensureSellPrice(bucket)
-            if price and price > 0 then
-                local value = price * (bucket.count or 0)
-                byQuality[q] = (byQuality[q] or 0) + value
-                total = total + value
-            end
-        end
-    end
-    return total, byQuality
+function Loot:HasAuctionator()
+    return Auctionator ~= nil
+        and Auctionator.API ~= nil
+        and Auctionator.API.v1 ~= nil
 end
 
-function Loot:VendorValue(sess)
-    local total = self:VendorBreakdown(sess)
-    return total
+-- Auctionator (Vanilla/Classic) exposes a stable public API at
+-- Auctionator.API.v1.GetAuctionPriceByItemLink(callerID, link). Returns
+-- nil when Auctionator isn't installed or has no scan data for the item.
+local function ahPriceForBucket(bucket)
+    if not Loot:HasAuctionator() then
+        return nil
+    end
+    local api = Auctionator.API.v1
+    if api.GetAuctionPriceByItemLink and bucket.link then
+        local p = api.GetAuctionPriceByItemLink("HelloLog", bucket.link)
+        if p and p > 0 then return p end
+    end
+    if api.GetAuctionPriceByItemID and bucket.link then
+        local id = tonumber(bucket.link:match("item:(%d+)"))
+        if id then
+            local p = api.GetAuctionPriceByItemID("HelloLog", id)
+            if p and p > 0 then return p end
+        end
+    end
+    return nil
+end
+
+function Loot:AHPrice(bucket)
+    return ahPriceForBucket(bucket)
+end
+
+function Loot:ItemsValue(sess)
+    local result = { vendorTotal = 0, ahTotal = 0, byQuality = {} }
+    if not sess or not sess.items then return result end
+    for _, bucket in pairs(sess.items) do
+        local q = bucket.quality or 1
+        if q <= 4 then
+            local count = bucket.count or 0
+            local row = result.byQuality[q] or { vendor = 0, ah = 0 }
+            local sp = ensureSellPrice(bucket)
+            if sp and sp > 0 then
+                local v = sp * count
+                row.vendor = row.vendor + v
+                result.vendorTotal = result.vendorTotal + v
+            end
+            local ah = ahPriceForBucket(bucket)
+            if ah and ah > 0 then
+                local v = ah * count
+                row.ah = row.ah + v
+                result.ahTotal = result.ahTotal + v
+            end
+            result.byQuality[q] = row
+        end
+    end
+    return result
 end
 
 local lastMoney

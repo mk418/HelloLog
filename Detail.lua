@@ -12,10 +12,11 @@ local zoneHeader
 local zoneRows = {}
 local deathHeader
 local deathRows = {}
+local vendorHeader
+local vendorRows = {}
 local historyRows = {}
 local viewButton
 local sessionSummary
-local vendorSummary
 local viewMode = "live"
 local viewIndex
 local lastViewKey
@@ -23,10 +24,10 @@ local REP_ROW_HEIGHT = 14
 local ITEM_ROW_HEIGHT = 14
 local ZONE_ROW_HEIGHT = 14
 local DEATH_ROW_HEIGHT = 14
+local VENDOR_ROW_HEIGHT = 14
 local HISTORY_ROW_HEIGHT = 18
 local SECTION_GAP = 10
 local SESSION_SUMMARY_GAP = 8
-local VENDOR_SUMMARY_HEIGHT = 14
 local TOP_BUTTON_HEIGHT = 24
 
 local ICON_SIZE = 26
@@ -221,6 +222,7 @@ local function collectItemTotals(sess)
                 quality = bucket.quality or 1,
                 link = bucket.link,
                 sellPrice = HL.Loot:SellPrice(bucket),
+                ahPrice = HL.Loot:AHPrice(bucket),
             }
         end
     end
@@ -279,8 +281,12 @@ local function layoutItems(items, yStart, seconds)
         if it.sellPrice and it.sellPrice > 0 then
             valueText = "   " .. GetCoinTextureString(it.sellPrice * it.count)
         end
-        row:SetText(string.format("%s%s|r   \195\151%d%s%s",
-            qualityHex(it.quality), it.name, it.count, valueText, hrSuffix))
+        local ahText = ""
+        if HL.Loot:HasAuctionator() and it.ahPrice and it.ahPrice > 0 then
+            ahText = "   |cFF888888(" .. GetCoinTextureString(it.ahPrice * it.count) .. ")|r"
+        end
+        row:SetText(string.format("%s%s|r   \195\151%d%s%s%s",
+            qualityHex(it.quality), it.name, it.count, hrSuffix, valueText, ahText))
         row:Show()
         y = y + ITEM_ROW_HEIGHT
     end
@@ -409,6 +415,73 @@ local function layoutDeaths(deaths, yStart)
         y = y + DEATH_ROW_HEIGHT
     end
     hideDeathRows(#deaths + 1)
+    return y + SECTION_GAP
+end
+
+local function getVendorRow(i)
+    local row = vendorRows[i]
+    if not row then
+        row = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        row:SetJustifyH("LEFT")
+        vendorRows[i] = row
+    end
+    return row
+end
+
+local function hideVendorRows(from)
+    for i = from, #vendorRows do vendorRows[i]:Hide() end
+end
+
+local function layoutVendor(itemsValue, yStart)
+    local total = (itemsValue and itemsValue.vendorTotal) or 0
+    local ahTotal = (itemsValue and itemsValue.ahTotal) or 0
+    local hasAH = HL.Loot:HasAuctionator()
+    if total <= 0 and (not hasAH or ahTotal <= 0) then
+        if vendorHeader then vendorHeader:Hide() end
+        hideVendorRows(1)
+        return yStart
+    end
+
+    if not vendorHeader then
+        vendorHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        vendorHeader:SetJustifyH("LEFT")
+    end
+    local headerPieces = { "|cFFFFCC00Items value|r" }
+    if total > 0 then
+        headerPieces[#headerPieces + 1] = "|cFFFFFFFF" .. GetCoinTextureString(total) .. "|r"
+    end
+    if hasAH and ahTotal > 0 then
+        headerPieces[#headerPieces + 1] = "|cFF888888(AH " .. GetCoinTextureString(ahTotal) .. ")|r"
+    end
+    vendorHeader:SetText(table.concat(headerPieces, "   "))
+    vendorHeader:ClearAllPoints()
+    vendorHeader:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yStart)
+    vendorHeader:Show()
+    local y = yStart + NAME_HEIGHT + 2
+
+    local idx = 0
+    for _, q in ipairs({ 0, 1, 2, 3, 4 }) do
+        local entry = itemsValue.byQuality[q]
+        if entry and (entry.vendor > 0 or (hasAH and (entry.ah or 0) > 0)) then
+            idx = idx + 1
+            local row = getVendorRow(idx)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -y)
+            local label = _G["ITEM_QUALITY" .. q .. "_DESC"] or tostring(q)
+            local rowPieces = {}
+            if entry.vendor > 0 then
+                rowPieces[#rowPieces + 1] = GetCoinTextureString(entry.vendor)
+            end
+            if hasAH and entry.ah and entry.ah > 0 then
+                rowPieces[#rowPieces + 1] = "|cFF888888(" .. GetCoinTextureString(entry.ah) .. ")|r"
+            end
+            row:SetText(string.format("%s%s|r   %s",
+                qualityHex(q), label, table.concat(rowPieces, "   ")))
+            row:Show()
+            y = y + VENDOR_ROW_HEIGHT
+        end
+    end
+    hideVendorRows(idx + 1)
     return y + SECTION_GAP
 end
 
@@ -660,30 +733,10 @@ local function renderSummary(sess, seconds)
     parts[#parts + 1] = GetCoinTextureString(sess.money or 0)
     sessionSummary:SetText(table.concat(parts, "   |cFF666666\194\183|r   "))
     sessionSummary:Show()
-
-    if vendorSummary then
-        local total, byQuality = HL.Loot:VendorBreakdown(sess)
-        if total > 0 then
-            local vparts = { "|cFFFFCC00Vendor|r " .. GetCoinTextureString(total) }
-            for _, q in ipairs({ 0, 1, 2 }) do
-                local v = byQuality[q]
-                if v and v > 0 then
-                    local label = _G["ITEM_QUALITY" .. q .. "_DESC"] or tostring(q)
-                    vparts[#vparts + 1] = string.format("%s%s|r %s",
-                        qualityHex(q), label, GetCoinTextureString(v))
-                end
-            end
-            vendorSummary:SetText(table.concat(vparts, "   |cFF666666\194\183|r   "))
-            vendorSummary:Show()
-        else
-            vendorSummary:Hide()
-        end
-    end
 end
 
 local function hideSummary()
     if sessionSummary then sessionSummary:Hide() end
-    if vendorSummary then vendorSummary:Hide() end
 end
 
 local function renderSessionLayout(sess, seconds, endTimeFallback)
@@ -699,9 +752,11 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     else
         empty:Hide()
     end
+    local itemsValue = HL.Loot:ItemsValue(sess)
     local y = layoutRep(factions, 0, seconds)
     y = layoutZones(visits, y)
     y = layoutDeaths(deaths, y)
+    y = layoutVendor(itemsValue, y)
     y = layoutItems(items, y, seconds)
     layoutRows(mobs, y, seconds)
 end
@@ -711,6 +766,7 @@ local function clearSessionLayout()
     layoutRep({}, 0, 0)
     layoutZones({}, 0)
     layoutDeaths({}, 0)
+    layoutVendor(nil, 0)
     layoutItems({}, 0, 0)
     layoutRows({}, 0, 0)
 end
@@ -741,15 +797,8 @@ function Detail:Build(parent, containerWidth)
     sessionSummary:SetWordWrap(false)
     sessionSummary:Hide()
 
-    vendorSummary = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    vendorSummary:SetPoint("TOPLEFT", sessionSummary, "BOTTOMLEFT", 0, -2)
-    vendorSummary:SetPoint("RIGHT", sessionSummary, "RIGHT")
-    vendorSummary:SetJustifyH("LEFT")
-    vendorSummary:SetWordWrap(false)
-    vendorSummary:Hide()
-
     scroll = CreateFrame("ScrollFrame", "HelloLogDetailScroll", container, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 0, -(TOP_BUTTON_HEIGHT + SESSION_SUMMARY_GAP + 14 + VENDOR_SUMMARY_HEIGHT + 2))
+    scroll:SetPoint("TOPLEFT", 0, -(TOP_BUTTON_HEIGHT + SESSION_SUMMARY_GAP + 14))
     scroll:SetPoint("BOTTOMRIGHT", -SCROLLBAR_GUTTER, 0)
 
     local innerWidth = math.max(1, (containerWidth or 1) - SCROLLBAR_GUTTER)
