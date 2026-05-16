@@ -44,10 +44,12 @@ local function rotateToCurrentZone()
         Session.current = ensureBucket(zone)
         Session.lastResumeAt = time()
     else
-        -- Idle: attach to an existing bucket for this zone if one is open
-        -- (Pause → Resume), but don't fabricate one — otherwise a full Stop
-        -- would still show "Resume" after the next zone load.
-        Session.current = HL.db.sessions[zone]
+        -- Idle: if a paused recording exists (state.zone set after Pause),
+        -- keep its bucket attached so the panel keeps showing the paused
+        -- timer/money even as the player wanders into other zones. After a
+        -- full Stop state.zone is nil, so the panel correctly goes blank.
+        local pausedZone = HL.db.state and HL.db.state.zone
+        Session.current = pausedZone and HL.db.sessions[pausedZone] or nil
     end
 end
 
@@ -185,6 +187,7 @@ function Session:Close()
         HL:Print("discarded empty " .. zone .. " session")
     else
         archiveCurrent()
+        HL.Detail:ShowHistoryEntry(#HL.db.history)
         HL:Print("ended " .. zone)
     end
     HL.UI:Refresh()

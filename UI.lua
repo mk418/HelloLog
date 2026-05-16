@@ -200,6 +200,9 @@ end
 function UI:SetExpanded(expanded)
     UIStore().expanded = expanded and true or nil
     if expanded then
+        if HL.Session:IsRecording() then
+            HL.Detail:ShowLive()
+        end
         frame.detailButton:SetText("Hide details")
         hideIcons()
         frame:SetWidth(EXPANDED_WIDTH)

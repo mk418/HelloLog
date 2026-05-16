@@ -730,6 +730,17 @@ function Detail:Build(parent, containerWidth)
     return container
 end
 
+function Detail:ShowHistoryEntry(index)
+    viewMode = "historyDetail"
+    viewIndex = index
+    self:Refresh()
+end
+
+function Detail:ShowLive()
+    viewMode = "live"
+    viewIndex = nil
+end
+
 function Detail:Refresh()
     if not container or not container:IsShown() then return end
 
@@ -751,12 +762,18 @@ function Detail:Refresh()
     end
 
     if viewMode == "historyList" then
-        viewButton:SetText("Show current")
+        if HL.Session:Current() then
+            viewButton:SetText("Show current")
+            viewButton:Show()
+        else
+            viewButton:Hide()
+        end
         clearSessionLayout()
         layoutHistoryList()
         return
     elseif viewMode == "historyDetail" then
         viewButton:SetText("\194\171 Back")
+        viewButton:Show()
         hideHistoryRows(1)
         local entries = HL.db.history or {}
         local sess = entries[viewIndex]
@@ -771,6 +788,7 @@ function Detail:Refresh()
     end
 
     viewButton:SetText("Show history")
+    viewButton:Show()
     hideHistoryRows(1)
     local sess = HL.Session:Current()
     if not sess then
