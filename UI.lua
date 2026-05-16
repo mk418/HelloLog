@@ -232,7 +232,12 @@ function UI:Init()
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetClampedToScreen(true)
-    frame:SetFrameStrata("LOW")
+    frame:SetFrameStrata("MEDIUM")
+    -- Sit just above the minimap (which also lives on MEDIUM) so the
+    -- minimap doesn't draw over us, while staying low enough that addon
+    -- windows like ThreatClassic2 or HelloStock render on top.
+    local mmLevel = (Minimap and Minimap:GetFrameLevel()) or 1
+    frame:SetFrameLevel(mmLevel + 1)
     frame:SetUserPlaced(false)
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", function(self)
