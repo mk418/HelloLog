@@ -28,7 +28,7 @@ local function recordItem(link, count)
     local itemID = tonumber(link:match("item:(%d+)"))
     if not itemID then return end
 
-    local name, _, quality, _, _, _, _, _, _, icon = GetItemInfo(link)
+    local name, _, quality, _, _, _, _, _, _, icon, sellPrice = GetItemInfo(link)
 
     local bucket = sess.items[itemID]
     if not bucket then
@@ -40,6 +40,7 @@ local function recordItem(link, count)
     if icon    then bucket.icon    = icon end
     if quality then bucket.quality = quality end
     if link    then bucket.link    = link end
+    if sellPrice and sellPrice > 0 then bucket.sellPrice = sellPrice end
 
     if UnitExists("target") and UnitIsDead("target") and not UnitIsPlayer("target") then
         local mob = UnitName("target")
@@ -76,6 +77,42 @@ local function tryParseLoot(msg)
 
     link = msg:match(SELF_CREATED)
     if link then recordItem(link, 1); return end
+end
+
+-- Backfills sellPrice on a bucket the first time it's displayed; the
+-- value isn't always available the moment loot is parsed because
+-- GetItemInfo can be cold-cache on a fresh login.
+local function ensureSellPrice(bucket)
+    if bucket.sellPrice or not bucket.link then return bucket.sellPrice end
+    local _, _, _, _, _, _, _, _, _, _, sp = GetItemInfo(bucket.link)
+    if sp and sp > 0 then bucket.sellPrice = sp end
+    return bucket.sellPrice
+end
+
+function Loot:SellPrice(bucket)
+    return ensureSellPrice(bucket)
+end
+
+function Loot:VendorBreakdown(sess)
+    local total, byQuality = 0, {}
+    if not sess or not sess.items then return total, byQuality end
+    for _, bucket in pairs(sess.items) do
+        local q = bucket.quality or 1
+        if q <= 2 then
+            local price = ensureSellPrice(bucket)
+            if price and price > 0 then
+                local value = price * (bucket.count or 0)
+                byQuality[q] = (byQuality[q] or 0) + value
+                total = total + value
+            end
+        end
+    end
+    return total, byQuality
+end
+
+function Loot:VendorValue(sess)
+    local total = self:VendorBreakdown(sess)
+    return total
 end
 
 local lastMoney

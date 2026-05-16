@@ -11,8 +11,9 @@ local PAD_LEFT = 10
 local PAD_RIGHT = 10
 local STATE_LINE_Y = -32
 local STATS_LINE_Y = -58
-local REP_LINE_Y = -76
-local CONTENT_TOP_OFFSET = 96
+local VENDOR_LINE_Y = -76
+local REP_LINE_Y = -94
+local CONTENT_TOP_OFFSET = 114
 local BOTTOM_PAD = 12
 local COMPACT_EMPTY_HEIGHT = CONTENT_TOP_OFFSET + BOTTOM_PAD + 4
 local EXPANDED_HEIGHT = 480
@@ -286,6 +287,13 @@ function UI:Init()
     frame.stats:SetJustifyH("LEFT")
     frame.stats:SetWordWrap(false)
 
+    frame.vendorLine = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.vendorLine:SetPoint("TOPLEFT", PAD_LEFT + 4, VENDOR_LINE_Y)
+    frame.vendorLine:SetPoint("TOPRIGHT", -PAD_RIGHT, VENDOR_LINE_Y)
+    frame.vendorLine:SetJustifyH("LEFT")
+    frame.vendorLine:SetWordWrap(false)
+    frame.vendorLine:Hide()
+
     frame.repLine = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     frame.repLine:SetPoint("TOPLEFT", PAD_LEFT, REP_LINE_Y)
     frame.repLine:SetPoint("TOPRIGHT", -PAD_RIGHT, REP_LINE_Y)
@@ -355,6 +363,15 @@ function UI:Refresh()
         parts[#parts + 1] = formatMoney(sess.money)
         frame.stats:SetText(table.concat(parts, "   |cFF666666\194\183|r   "))
 
+        local vendor = HL.Loot:VendorValue(sess)
+        if vendor > 0 then
+            frame.vendorLine:SetText("|cFFFFCC00Vendor|r " .. formatMoney(vendor))
+            frame.vendorLine:Show()
+        else
+            frame.vendorLine:SetText("")
+            frame.vendorLine:Hide()
+        end
+
         local factions = {}
         for name, b in pairs(sess.factions or {}) do
             local delta = b.delta or 0
@@ -384,6 +401,8 @@ function UI:Refresh()
     else
         frame.title:SetText("|cFF999999Press record to begin.|r")
         frame.stats:SetText("")
+        frame.vendorLine:SetText("")
+        frame.vendorLine:Hide()
         frame.repLine:SetText("")
         frame.repLine:Hide()
     end
