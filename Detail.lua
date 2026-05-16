@@ -733,6 +733,11 @@ end
 function Detail:Refresh()
     if not container or not container:IsShown() then return end
 
+    if viewMode == "live" and not HL.Session:Current() then
+        viewMode = "historyList"
+        viewIndex = nil
+    end
+
     local containerW = container:GetWidth()
     if containerW and containerW > 0 then
         scrollChild:SetWidth(math.max(1, containerW - SCROLLBAR_GUTTER))
