@@ -394,7 +394,15 @@ local function layoutDeaths(deaths, yStart)
         deathHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         deathHeader:SetJustifyH("LEFT")
     end
-    deathHeader:SetText(string.format("|cFFFF6666Deaths|r   |cFF999999(%d)|r", #deaths))
+    local totalRepair = 0
+    for _, d in ipairs(deaths) do
+        totalRepair = totalRepair + HL.Deaths:DeathRepairCost(d)
+    end
+    local headerSuffix = totalRepair > 0
+        and string.format("   |cFF888888(~%s repair)|r", GetCoinTextureString(totalRepair))
+        or ""
+    deathHeader:SetText(string.format(
+        "|cFFFF6666Deaths|r   |cFF999999(%d)|r%s", #deaths, headerSuffix))
     deathHeader:ClearAllPoints()
     deathHeader:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yStart)
     deathHeader:Show()
@@ -405,11 +413,16 @@ local function layoutDeaths(deaths, yStart)
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -y)
         local killer = d.killer and string.format("   |cFFFF9999%s|r", d.killer) or ""
+        local cost = HL.Deaths:DeathRepairCost(d)
+        local costSuffix = cost > 0
+            and string.format("   |cFF888888~%s|r", GetCoinTextureString(cost))
+            or ""
         row:SetText(string.format(
-            "%s   %s%s",
+            "%s   %s%s%s",
             date("%H:%M", d.time or 0),
             d.zone or "?",
-            killer
+            killer,
+            costSuffix
         ))
         row:Show()
         y = y + DEATH_ROW_HEIGHT

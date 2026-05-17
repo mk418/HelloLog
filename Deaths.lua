@@ -23,6 +23,55 @@ local function isHostileNPC(flags)
         and bit.band(flags, REACTION_HOSTILE) ~= 0
 end
 
+-- A death drops 10% durability on every equipped item that has any.
+-- The classic-era repair-cost-per-item at zero durability tracks the
+-- item's vendor sell price closely enough for a useful approximation,
+-- so we cost a death at 10% of the summed sell prices of equipped
+-- gear. Stored alongside the death so we can recompute later if
+-- GetItemInfo was cold-cache at death time.
+local function snapshotEquipment()
+    local eq = {}
+    for slot = 1, 19 do
+        local _, maxDur = GetInventoryItemDurability(slot)
+        if maxDur and maxDur > 0 then
+            local link = GetInventoryItemLink("player", slot)
+            if link then
+                eq[#eq + 1] = { link = link }
+            end
+        end
+    end
+    return eq
+end
+
+local function computeRepairCost(equipment)
+    local total = 0
+    if not equipment then return 0 end
+    for _, item in ipairs(equipment) do
+        local _, _, _, _, _, _, _, _, _, _, sellPrice = GetItemInfo(item.link)
+        if sellPrice and sellPrice > 0 then
+            total = total + math.floor(sellPrice * 0.10)
+        end
+    end
+    return total
+end
+
+function Deaths:DeathRepairCost(death)
+    if not death then return 0 end
+    if (death.repairCost or 0) == 0 and death.equipment then
+        death.repairCost = computeRepairCost(death.equipment)
+    end
+    return death.repairCost or 0
+end
+
+function Deaths:TotalRepairCost(sess)
+    if not sess or not sess.deaths then return 0 end
+    local total = 0
+    for _, d in ipairs(sess.deaths) do
+        total = total + self:DeathRepairCost(d)
+    end
+    return total
+end
+
 local function recordDeath()
     if not HL.Session:IsRecording() then return end
     local sess = HL.Session:Current()
@@ -30,10 +79,13 @@ local function recordDeath()
     sess.deaths = sess.deaths or {}
     local zone = GetRealZoneText()
     if not zone or zone == "" then zone = "Unknown" end
+    local equipment = snapshotEquipment()
     sess.deaths[#sess.deaths + 1] = {
         time = time(),
         zone = zone,
         killer = lastAttacker,
+        equipment = equipment,
+        repairCost = computeRepairCost(equipment),
     }
     lastAttacker = nil
     HL.UI:Refresh()
