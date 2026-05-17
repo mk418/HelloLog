@@ -2,7 +2,7 @@
 ## Title: HelloLog
 ## Notes: Per-zone session log of loot, gold, kills, and reputation for Classic Era
 ## Author: Drikk
-## Version: 0.2.0
+## Version: 0.3.0
 ## SavedVariablesPerCharacter: HelloLogDB
 ## X-License: MIT
 ## X-Curse-Project-ID: 1544304
