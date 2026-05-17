@@ -385,7 +385,13 @@ function UI:Refresh()
             if xpTotal > 0 or levelUps > 0 then
                 local pieces = {}
                 if xpTotal > 0 then
-                    pieces[#pieces + 1] = string.format("%d XP", xpTotal)
+                    local hr = formatPerHour(xpTotal, elapsed)
+                    if hr then
+                        pieces[#pieces + 1] = string.format(
+                            "%d XP |cFF999999(%s)|r", xpTotal, hr)
+                    else
+                        pieces[#pieces + 1] = string.format("%d XP", xpTotal)
+                    end
                 end
                 if levelUps > 0 then
                     pieces[#pieces + 1] = string.format("|cFFFFFF66+%d lvl|r", levelUps)
