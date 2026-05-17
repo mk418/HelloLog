@@ -151,6 +151,76 @@ function Loot:ItemsValue(sess)
     return result
 end
 
+-- Snapshot the player's bags (aggregated count per itemID across bags).
+-- Used by trade and disenchant tracking to detect which session-loot
+-- items have left the player's possession.
+local function bagSnapshot()
+    local snap = {}
+    local maxBag = NUM_BAG_SLOTS or 4
+    for bag = 0, maxBag do
+        local slots = (C_Container and C_Container.GetContainerNumSlots
+                and C_Container.GetContainerNumSlots(bag))
+            or (GetContainerNumSlots and GetContainerNumSlots(bag)) or 0
+        for slot = 1, slots do
+            local id, count
+            if C_Container and C_Container.GetContainerItemInfo then
+                local info = C_Container.GetContainerItemInfo(bag, slot)
+                if info then id, count = info.itemID, info.stackCount end
+            elseif GetContainerItemInfo then
+                local _, c, _, _, _, _, link = GetContainerItemInfo(bag, slot)
+                if link then
+                    id = tonumber(link:match("item:(%d+)"))
+                    count = c
+                end
+            end
+            if id and count then
+                snap[id] = (snap[id] or 0) + count
+            end
+        end
+    end
+    return snap
+end
+
+local function decrementPerMob(sess, itemID, amount)
+    local remaining = amount
+    for _, per in pairs(sess.perMob or {}) do
+        if remaining <= 0 then break end
+        local count = per.items and per.items[itemID]
+        if count and count > 0 then
+            local sub = math.min(remaining, count)
+            per.items[itemID] = count - sub
+            remaining = remaining - sub
+        end
+    end
+end
+
+local function applyOutgoingDelta(preSnapshot)
+    if not preSnapshot then return end
+    if not HL.Session:IsRecording() then return end
+    local sess = HL.Session:Current()
+    if not sess or not sess.items then return end
+    local current = bagSnapshot()
+    local touched = false
+    for itemID, oldCount in pairs(preSnapshot) do
+        local newCount = current[itemID] or 0
+        if newCount < oldCount then
+            local lost = oldCount - newCount
+            local bucket = sess.items[itemID]
+            if bucket and (bucket.count or 0) > 0 then
+                local sub = math.min(lost, bucket.count)
+                bucket.count = bucket.count - sub
+                decrementPerMob(sess, itemID, sub)
+                touched = true
+            end
+        end
+    end
+    if touched then HL.UI:Refresh() end
+end
+
+local pendingTrade
+local pendingDisenchant
+local DISENCHANT_SPELL_ID = 13262
+
 local lastMoney
 
 function Loot:Init()
@@ -178,4 +248,47 @@ function Loot:Init()
             end
         end
     end)
+
+    HL:RegisterEvent("TRADE_SHOW", function()
+        pendingTrade = bagSnapshot()
+    end)
+    HL:RegisterEvent("TRADE_REQUEST_CANCEL", function()
+        pendingTrade = nil
+    end)
+    HL:RegisterEvent("TRADE_CLOSED", function()
+        if not pendingTrade then return end
+        local pre = pendingTrade
+        pendingTrade = nil
+        -- Bags lag a hair behind TRADE_CLOSED, so wait a tick before diffing.
+        if C_Timer and C_Timer.After then
+            C_Timer.After(0.5, function() applyOutgoingDelta(pre) end)
+        else
+            applyOutgoingDelta(pre)
+        end
+    end)
+
+    HL:RegisterEvent("UNIT_SPELLCAST_SENT", function(unit, _, _, spellID)
+        if unit ~= "player" then return end
+        if spellID == DISENCHANT_SPELL_ID then
+            pendingDisenchant = bagSnapshot()
+        end
+    end)
+    HL:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
+        if unit ~= "player" then return end
+        if spellID == DISENCHANT_SPELL_ID and pendingDisenchant then
+            local pre = pendingDisenchant
+            pendingDisenchant = nil
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0.5, function() applyOutgoingDelta(pre) end)
+            else
+                applyOutgoingDelta(pre)
+            end
+        end
+    end)
+    local function clearDisenchant(unit, _, spellID)
+        if unit ~= "player" then return end
+        if spellID == DISENCHANT_SPELL_ID then pendingDisenchant = nil end
+    end
+    HL:RegisterEvent("UNIT_SPELLCAST_FAILED",      clearDisenchant)
+    HL:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", clearDisenchant)
 end
