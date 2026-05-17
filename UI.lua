@@ -378,6 +378,21 @@ function UI:Refresh()
                 parts[#parts + 1] = string.format("%d kills", totalKills)
             end
         end
+        local xp = sess.xp
+        if xp then
+            local xpTotal = xp.total or 0
+            local levelUps = xp.levelUps and #xp.levelUps or 0
+            if xpTotal > 0 or levelUps > 0 then
+                local pieces = {}
+                if xpTotal > 0 then
+                    pieces[#pieces + 1] = string.format("%d XP", xpTotal)
+                end
+                if levelUps > 0 then
+                    pieces[#pieces + 1] = string.format("|cFFFFFF66+%d lvl|r", levelUps)
+                end
+                parts[#parts + 1] = table.concat(pieces, " ")
+            end
+        end
         local deaths = sess.deaths and #sess.deaths or 0
         if deaths > 0 then
             parts[#parts + 1] = string.format("|cFFFF6666%d deaths|r", deaths)

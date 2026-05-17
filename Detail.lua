@@ -16,6 +16,8 @@ local vendorHeader
 local vendorRows = {}
 local consumableHeader
 local consumableRows = {}
+local xpHeader
+local xpRows = {}
 local historyRows = {}
 local viewButton
 local sessionSummary
@@ -28,6 +30,7 @@ local ZONE_ROW_HEIGHT = 14
 local DEATH_ROW_HEIGHT = 14
 local VENDOR_ROW_HEIGHT = 14
 local CONSUMABLE_ROW_HEIGHT = 14
+local XP_ROW_HEIGHT = 14
 local HISTORY_ROW_HEIGHT = 18
 local SECTION_GAP = 10
 local SESSION_SUMMARY_GAP = 8
@@ -570,6 +573,85 @@ local function layoutConsumables(consumables, yStart, seconds)
     return y + SECTION_GAP
 end
 
+local function getXPRow(i)
+    local row = xpRows[i]
+    if not row then
+        row = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        row:SetJustifyH("LEFT")
+        xpRows[i] = row
+    end
+    return row
+end
+
+local function hideXPRows(from)
+    for i = from, #xpRows do xpRows[i]:Hide() end
+end
+
+local function formatNumber(n)
+    n = math.floor(n or 0)
+    local s = tostring(n)
+    local k
+    repeat
+        s, k = s:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+    until k == 0
+    return s
+end
+
+local function layoutXP(xp, yStart, seconds)
+    local total = xp and (xp.total or 0) or 0
+    local rested = xp and (xp.rested or 0) or 0
+    local levelUps = xp and xp.levelUps or {}
+    if total <= 0 and #levelUps == 0 then
+        if xpHeader then xpHeader:Hide() end
+        hideXPRows(1)
+        return yStart
+    end
+
+    if not xpHeader then
+        xpHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        xpHeader:SetJustifyH("LEFT")
+    end
+    local headerPieces = { "|cFFFFCC00Experience|r" }
+    if total > 0 then
+        headerPieces[#headerPieces + 1] = "|cFFFFFFFF" .. formatNumber(total) .. " XP|r"
+        local hr = formatPerHour(total, seconds)
+        if hr then
+            headerPieces[#headerPieces + 1] = string.format("|cFF999999(%s)|r", hr)
+        end
+    end
+    xpHeader:SetText(table.concat(headerPieces, "   "))
+    xpHeader:ClearAllPoints()
+    xpHeader:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yStart)
+    xpHeader:Show()
+    local y = yStart + NAME_HEIGHT + 2
+
+    local idx = 0
+    if rested > 0 then
+        idx = idx + 1
+        local row = getXPRow(idx)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -y)
+        row:SetText(string.format(
+            "|cFF66CCFFRested bonus|r   %s XP", formatNumber(rested)))
+        row:Show()
+        y = y + XP_ROW_HEIGHT
+    end
+    for _, lu in ipairs(levelUps) do
+        idx = idx + 1
+        local row = getXPRow(idx)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -y)
+        row:SetText(string.format(
+            "%s   |cFFFFFF66Reached level %d|r",
+            date("%H:%M", lu.time or 0),
+            lu.level or 0))
+        row:Show()
+        y = y + XP_ROW_HEIGHT
+    end
+    hideXPRows(idx + 1)
+    return y + SECTION_GAP
+end
+
 local function layoutRows(mobs, yStart, seconds)
     local innerWidth = scrollChild:GetWidth()
     if innerWidth < 1 then innerWidth = 1 end
@@ -832,8 +914,10 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     local visits = collectZoneVisits(sess, endTimeFallback)
     local deaths = sess.deaths or {}
     local consumables = collectConsumables(sess)
+    local xp = sess.xp
+    local hasXP = xp and ((xp.total or 0) > 0 or (xp.levelUps and #xp.levelUps > 0))
     if #factions == 0 and #items == 0 and #mobs == 0 and #visits == 0
-        and #deaths == 0 and #consumables == 0 then
+        and #deaths == 0 and #consumables == 0 and not hasXP then
         empty:SetText("No data recorded.")
         empty:Show()
     else
@@ -841,6 +925,7 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     end
     local itemsValue = HL.Loot:ItemsValue(sess)
     local y = layoutRep(factions, 0, seconds)
+    y = layoutXP(xp, y, seconds)
     y = layoutZones(visits, y)
     y = layoutDeaths(deaths, y)
     y = layoutVendor(itemsValue, y)
@@ -852,6 +937,7 @@ end
 local function clearSessionLayout()
     hideSummary()
     layoutRep({}, 0, 0)
+    layoutXP(nil, 0, 0)
     layoutZones({}, 0)
     layoutDeaths({}, 0)
     layoutVendor(nil, 0)

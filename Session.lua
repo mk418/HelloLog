@@ -169,6 +169,10 @@ local function isEmpty(sess)
     for _, c in pairs(sess.consumables or {}) do
         if (c.count or 0) > 0 then return false end
     end
+    if sess.xp then
+        if (sess.xp.total or 0) > 0 then return false end
+        if sess.xp.levelUps and #sess.xp.levelUps > 0 then return false end
+    end
     return true
 end
 
