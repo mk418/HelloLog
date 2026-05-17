@@ -11,9 +11,10 @@ local PAD_LEFT = 10
 local PAD_RIGHT = 10
 local STATE_LINE_Y = -32
 local STATS_LINE_Y = -58
-local VENDOR_LINE_Y = -76
-local REP_LINE_Y = -94
-local CONTENT_TOP_OFFSET = 114
+local XP_LINE_Y = -76
+local VENDOR_LINE_Y = -94
+local REP_LINE_Y = -112
+local CONTENT_TOP_OFFSET = 132
 local BOTTOM_PAD = 12
 local COMPACT_EMPTY_HEIGHT = CONTENT_TOP_OFFSET + BOTTOM_PAD + 4
 local EXPANDED_HEIGHT = 480
@@ -287,6 +288,13 @@ function UI:Init()
     frame.stats:SetJustifyH("LEFT")
     frame.stats:SetWordWrap(false)
 
+    frame.xpLine = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.xpLine:SetPoint("TOPLEFT", PAD_LEFT + 4, XP_LINE_Y)
+    frame.xpLine:SetPoint("TOPRIGHT", -PAD_RIGHT, XP_LINE_Y)
+    frame.xpLine:SetJustifyH("LEFT")
+    frame.xpLine:SetWordWrap(false)
+    frame.xpLine:Hide()
+
     frame.vendorLine = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.vendorLine:SetPoint("TOPLEFT", PAD_LEFT + 4, VENDOR_LINE_Y)
     frame.vendorLine:SetPoint("TOPRIGHT", -PAD_RIGHT, VENDOR_LINE_Y)
@@ -378,33 +386,36 @@ function UI:Refresh()
                 parts[#parts + 1] = string.format("%d kills", totalKills)
             end
         end
-        local xp = sess.xp
-        if xp then
-            local xpTotal = xp.total or 0
-            local levelUps = xp.levelUps and #xp.levelUps or 0
-            if xpTotal > 0 or levelUps > 0 then
-                local pieces = {}
-                if xpTotal > 0 then
-                    local hr = formatPerHour(xpTotal, elapsed)
-                    if hr then
-                        pieces[#pieces + 1] = string.format(
-                            "%d XP |cFF999999(%s)|r", xpTotal, hr)
-                    else
-                        pieces[#pieces + 1] = string.format("%d XP", xpTotal)
-                    end
-                end
-                if levelUps > 0 then
-                    pieces[#pieces + 1] = string.format("|cFFFFFF66+%d lvl|r", levelUps)
-                end
-                parts[#parts + 1] = table.concat(pieces, " ")
-            end
-        end
         local deaths = sess.deaths and #sess.deaths or 0
         if deaths > 0 then
             parts[#parts + 1] = string.format("|cFFFF6666%d deaths|r", deaths)
         end
         parts[#parts + 1] = formatMoney(sess.money)
         frame.stats:SetText(table.concat(parts, "   |cFF666666\194\183|r   "))
+
+        local xp = sess.xp
+        local xpTotal = xp and (xp.total or 0) or 0
+        local levelUps = xp and xp.levelUps and #xp.levelUps or 0
+        if xpTotal > 0 or levelUps > 0 then
+            local pieces = {}
+            if xpTotal > 0 then
+                local hr = formatPerHour(xpTotal, elapsed)
+                if hr then
+                    pieces[#pieces + 1] = string.format(
+                        "%d XP |cFF999999(%s)|r", xpTotal, hr)
+                else
+                    pieces[#pieces + 1] = string.format("%d XP", xpTotal)
+                end
+            end
+            if levelUps > 0 then
+                pieces[#pieces + 1] = string.format("|cFFFFFF66+%d lvl|r", levelUps)
+            end
+            frame.xpLine:SetText(table.concat(pieces, " "))
+            frame.xpLine:Show()
+        else
+            frame.xpLine:SetText("")
+            frame.xpLine:Hide()
+        end
 
         local itemsValue = HL.Loot:ItemsValue(sess)
         if itemsValue.vendorTotal > 0 then
@@ -448,6 +459,8 @@ function UI:Refresh()
     else
         frame.title:SetText("|cFF999999Press record to begin.|r")
         frame.stats:SetText("")
+        frame.xpLine:SetText("")
+        frame.xpLine:Hide()
         frame.vendorLine:SetText("")
         frame.vendorLine:Hide()
         frame.repLine:SetText("")
