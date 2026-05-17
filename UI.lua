@@ -237,11 +237,11 @@ function UI:Init()
     frame:RegisterForDrag("LeftButton")
     frame:SetClampedToScreen(true)
     frame:SetFrameStrata("MEDIUM")
-    -- Sit just above the minimap (which also lives on MEDIUM) so the
-    -- minimap doesn't draw over us, while staying low enough that addon
-    -- windows like ThreatClassic2 or HelloStock render on top.
+    -- Sit above the minimap (which also lives on MEDIUM) and clear of
+    -- action-bar flyouts from skins like DragonflightUI, which stack a
+    -- handful of levels above their parent bar.
     local mmLevel = (Minimap and Minimap:GetFrameLevel()) or 1
-    frame:SetFrameLevel(mmLevel + 1)
+    frame:SetFrameLevel(mmLevel + 100)
     frame:SetUserPlaced(false)
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", function(self)
