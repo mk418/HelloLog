@@ -16,6 +16,10 @@ local INCOMING_DAMAGE = {
 
 local lastAttacker
 local playerGUID
+-- PLAYER_DEAD can fire more than once for the same death (notably after
+-- a /reload while still a corpse). Gate recording on a single alive->dead
+-- transition; re-arm only when the player is actually alive again.
+local dead = false
 
 local function isHostileNPC(flags)
     if not flags then return false end
@@ -73,6 +77,8 @@ function Deaths:TotalRepairCost(sess)
 end
 
 local function recordDeath()
+    if dead then return end
+    dead = true
     if not HL.Session:IsRecording() then return end
     local sess = HL.Session:Current()
     if not sess then return end
@@ -95,9 +101,14 @@ function Deaths:Init()
     playerGUID = UnitGUID("player")
     HL:RegisterEvent("PLAYER_ENTERING_WORLD", function()
         playerGUID = UnitGUID("player")
+        dead = (UnitIsDeadOrGhost and UnitIsDeadOrGhost("player")) or false
     end)
     HL:RegisterEvent("PLAYER_ALIVE", function()
         lastAttacker = nil
+        dead = false
+    end)
+    HL:RegisterEvent("PLAYER_UNGHOST", function()
+        dead = false
     end)
     HL:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", function()
         local _, subevent, _, _, sourceName, sourceFlags, _, destGUID = CombatLogGetCurrentEventInfo()
