@@ -40,6 +40,7 @@ HL:RegisterEvent("ADDON_LOADED", function(name)
     HL.Rep:Init()
     HL.Kills:Init()
     HL.Deaths:Init()
+    HL.Consumables:Init()
     HL.UI:Init()
 end)
 

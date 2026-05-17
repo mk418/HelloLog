@@ -13,5 +13,6 @@ Loot.lua
 Rep.lua
 Kills.lua
 Deaths.lua
+Consumables.lua
 Detail.lua
 UI.lua

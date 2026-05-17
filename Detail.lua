@@ -14,6 +14,8 @@ local deathHeader
 local deathRows = {}
 local vendorHeader
 local vendorRows = {}
+local consumableHeader
+local consumableRows = {}
 local historyRows = {}
 local viewButton
 local sessionSummary
@@ -25,6 +27,7 @@ local ITEM_ROW_HEIGHT = 14
 local ZONE_ROW_HEIGHT = 14
 local DEATH_ROW_HEIGHT = 14
 local VENDOR_ROW_HEIGHT = 14
+local CONSUMABLE_ROW_HEIGHT = 14
 local HISTORY_ROW_HEIGHT = 18
 local SECTION_GAP = 10
 local SESSION_SUMMARY_GAP = 8
@@ -498,6 +501,75 @@ local function layoutVendor(itemsValue, yStart)
     return y + SECTION_GAP
 end
 
+local function collectConsumables(sess)
+    local list = {}
+    for _, bucket in pairs(sess.consumables or {}) do
+        local count = bucket.count or 0
+        if count > 0 then
+            list[#list + 1] = {
+                count = count,
+                name = bucket.name or "?",
+                quality = bucket.quality or 1,
+                link = bucket.link,
+            }
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.count ~= b.count then return a.count > b.count end
+        return (a.name or "") < (b.name or "")
+    end)
+    return list
+end
+
+local function getConsumableRow(i)
+    local row = consumableRows[i]
+    if not row then
+        row = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        row:SetJustifyH("LEFT")
+        consumableRows[i] = row
+    end
+    return row
+end
+
+local function hideConsumableRows(from)
+    for i = from, #consumableRows do consumableRows[i]:Hide() end
+end
+
+local function layoutConsumables(consumables, yStart, seconds)
+    if #consumables == 0 then
+        if consumableHeader then consumableHeader:Hide() end
+        hideConsumableRows(1)
+        return yStart
+    end
+
+    if not consumableHeader then
+        consumableHeader = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        consumableHeader:SetJustifyH("LEFT")
+    end
+    local total = 0
+    for _, c in ipairs(consumables) do total = total + c.count end
+    consumableHeader:SetText(string.format(
+        "|cFFFFCC00Consumables|r   |cFF999999(%d)|r", total))
+    consumableHeader:ClearAllPoints()
+    consumableHeader:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yStart)
+    consumableHeader:Show()
+    local y = yStart + NAME_HEIGHT + 2
+
+    for i, c in ipairs(consumables) do
+        local row = getConsumableRow(i)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 8, -y)
+        local hr = formatPerHour(c.count, seconds)
+        local hrSuffix = hr and string.format("   |cFF999999(%s)|r", hr) or ""
+        row:SetText(string.format("%s%s|r   \195\151%d%s",
+            qualityHex(c.quality), c.name, c.count, hrSuffix))
+        row:Show()
+        y = y + CONSUMABLE_ROW_HEIGHT
+    end
+    hideConsumableRows(#consumables + 1)
+    return y + SECTION_GAP
+end
+
 local function layoutRows(mobs, yStart, seconds)
     local innerWidth = scrollChild:GetWidth()
     if innerWidth < 1 then innerWidth = 1 end
@@ -759,7 +831,9 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     local mobs = collectMobs(sess)
     local visits = collectZoneVisits(sess, endTimeFallback)
     local deaths = sess.deaths or {}
-    if #factions == 0 and #items == 0 and #mobs == 0 and #visits == 0 and #deaths == 0 then
+    local consumables = collectConsumables(sess)
+    if #factions == 0 and #items == 0 and #mobs == 0 and #visits == 0
+        and #deaths == 0 and #consumables == 0 then
         empty:SetText("No data recorded.")
         empty:Show()
     else
@@ -771,6 +845,7 @@ local function renderSessionLayout(sess, seconds, endTimeFallback)
     y = layoutDeaths(deaths, y)
     y = layoutVendor(itemsValue, y)
     y = layoutItems(items, y, seconds)
+    y = layoutConsumables(consumables, y, seconds)
     layoutRows(mobs, y, seconds)
 end
 
@@ -781,6 +856,7 @@ local function clearSessionLayout()
     layoutDeaths({}, 0)
     layoutVendor(nil, 0)
     layoutItems({}, 0, 0)
+    layoutConsumables({}, 0, 0)
     layoutRows({}, 0, 0)
 end
 

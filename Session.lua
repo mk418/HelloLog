@@ -166,6 +166,9 @@ local function isEmpty(sess)
         if (f.delta or 0) ~= 0 then return false end
     end
     if sess.deaths and #sess.deaths > 0 then return false end
+    for _, c in pairs(sess.consumables or {}) do
+        if (c.count or 0) > 0 then return false end
+    end
     return true
 end
 
