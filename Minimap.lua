@@ -2,7 +2,7 @@ local HL = HelloLog
 local Minimap = {}
 HL.Minimap = Minimap
 
-local ICON_TEXTURE = "Interface\\Icons\\INV_Scroll_03"
+local ICON_TEXTURE = "Interface\\Icons\\INV_Misc_Book_11"
 local DEFAULT_ANGLE = 225
 
 local button
