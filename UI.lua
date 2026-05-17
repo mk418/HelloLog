@@ -321,11 +321,33 @@ function UI:Init()
     else
         self:Refresh()
     end
+
+    if UIStore().shown then
+        frame:Show()
+    else
+        frame:Hide()
+    end
+end
+
+function UI:IsShown()
+    return frame and frame:IsShown()
+end
+
+function UI:Show()
+    if not frame then return end
+    UIStore().shown = true
+    frame:Show()
+end
+
+function UI:Hide()
+    if not frame then return end
+    UIStore().shown = nil
+    frame:Hide()
 end
 
 function UI:Toggle()
     if not frame then return end
-    if frame:IsShown() then frame:Hide() else frame:Show() end
+    if frame:IsShown() then self:Hide() else self:Show() end
 end
 
 function UI:ResetPosition()

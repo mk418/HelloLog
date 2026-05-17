@@ -42,6 +42,8 @@ HL:RegisterEvent("ADDON_LOADED", function(name)
     HL.Deaths:Init()
     HL.Consumables:Init()
     HL.UI:Init()
+    HL.Minimap:Init()
+    HL.Options:Init()
 end)
 
 SLASH_HELLOLOG1 = "/hl"
@@ -63,7 +65,12 @@ SlashCmdList.HELLOLOG = function(msg)
         HL:Print("frame position reset.")
     elseif cmd == "wipe" or cmd == "clear" then
         HL.Session:Wipe()
+    elseif cmd == "options" or cmd == "config" or cmd == "settings" then
+        HL.Options:Open()
+    elseif cmd == "minimap" then
+        HL.Minimap:SetHidden(not HL.Minimap:IsHidden())
+        HL:Print("minimap icon " .. (HL.Minimap:IsHidden() and "hidden." or "shown."))
     else
-        HL:Print("commands: start | stop | show | detail | reset | resetpos | wipe")
+        HL:Print("commands: start | stop | show | detail | reset | resetpos | wipe | minimap | options")
     end
 end

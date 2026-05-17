@@ -16,3 +16,5 @@ Deaths.lua
 Consumables.lua
 Detail.lua
 UI.lua
+Minimap.lua
+Options.lua
