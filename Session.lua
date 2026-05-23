@@ -106,6 +106,12 @@ function Session:Init()
         end
         HL.UI:Refresh()
     end)
+    -- Fires before SavedVariables are written on /reload and full logout.
+    -- Without this, anything since the last Tick (or the entire recording if
+    -- the panel was hidden) wouldn't be folded into secondsActive on disk.
+    HL:RegisterEvent("PLAYER_LOGOUT", function()
+        flushTime()
+    end)
 end
 
 function Session:Start()
