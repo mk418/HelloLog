@@ -3,7 +3,7 @@ local ADDON_NAME = ...
 HelloLog = HelloLog or {}
 local HL = HelloLog
 
-HL.version = "0.4.0"
+HL.version = "0.4.1"
 HL.prefix = "|cFF66CCFFHelloLog|r: "
 
 function HL:Print(msg)
