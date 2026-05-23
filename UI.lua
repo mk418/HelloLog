@@ -253,6 +253,10 @@ function UI:Init()
     frame:SetScript("OnMouseUp", function(_, button)
         if button == "RightButton" then UI:ToggleExpanded() end
     end)
+    -- Persist shown state for any path that toggles visibility, including the
+    -- title-bar X button (HideParentPanel) and external callers.
+    frame:HookScript("OnShow", function() UIStore().shown = true end)
+    frame:HookScript("OnHide", function() UIStore().shown = nil end)
 
     RestorePosition()
     SavePosition()
@@ -343,13 +347,11 @@ end
 
 function UI:Show()
     if not frame then return end
-    UIStore().shown = true
     frame:Show()
 end
 
 function UI:Hide()
     if not frame then return end
-    UIStore().shown = nil
     frame:Hide()
 end
 
