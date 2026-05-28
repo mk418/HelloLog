@@ -5,7 +5,12 @@ HL.Kills = Kills
 -- Affiliation: MINE | PARTY | RAID = 0x07
 local GROUP_AFFILIATION_MASK = 0x00000007
 local OBJECT_TYPE_NPC        = COMBATLOG_OBJECT_TYPE_NPC      or 0x00000800
-local REACTION_HOSTILE       = COMBATLOG_OBJECT_REACTION_HOSTILE or 0x00000040
+-- Many farmable mobs (beasts, low-level humanoids) are flagged NEUTRAL until
+-- they aggro. A wand crit or Firebolt that one-shots a neutral mob arrives
+-- with REACTION_NEUTRAL, so HOSTILE-only matching dropped those kills.
+local ATTACKABLE_REACTION_MASK = bit.bor(
+    COMBATLOG_OBJECT_REACTION_HOSTILE or 0x00000040,
+    COMBATLOG_OBJECT_REACTION_NEUTRAL or 0x00000020)
 
 -- destGUIDs we (or any groupmate) have damaged in the current combat-log
 -- range. Used to attribute UNIT_DIED back to the group, since UNIT_DIED
@@ -27,10 +32,10 @@ local function isGroupSource(flags)
     return bit.band(flags, GROUP_AFFILIATION_MASK) ~= 0
 end
 
-local function isHostileNPC(flags)
+local function isAttackableNPC(flags)
     if not flags then return false end
     return bit.band(flags, OBJECT_TYPE_NPC) ~= 0
-        and bit.band(flags, REACTION_HOSTILE) ~= 0
+        and bit.band(flags, ATTACKABLE_REACTION_MASK) ~= 0
 end
 
 local function recordKill(name)
@@ -53,7 +58,7 @@ function Kills:Init()
         if not subevent or not destGUID then return end
 
         if DAMAGE_SUBEVENTS[subevent] then
-            if isGroupSource(sourceFlags) and isHostileNPC(destFlags) then
+            if isGroupSource(sourceFlags) and isAttackableNPC(destFlags) then
                 damaged[destGUID] = true
             end
             return
