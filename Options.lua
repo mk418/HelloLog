@@ -38,7 +38,8 @@ function Options:Init()
 
     if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
         local category = Settings.RegisterCanvasLayoutCategory(panel, "HelloLog")
-        category.ID = "HelloLog"
+        -- Keep the auto-assigned numeric ID: since 1.15.9 OpenToCategory is
+        -- C-side and rejects string IDs.
         Settings.RegisterAddOnCategory(category)
         categoryID = category:GetID()
     elseif InterfaceOptions_AddCategory then
