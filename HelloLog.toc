@@ -1,4 +1,4 @@
-## Interface: 11508
+## Interface: 11509
 ## Title: HelloLog
 ## Notes: Per-zone session log of loot, gold, kills, and reputation for Classic Era
 ## Author: Drikk

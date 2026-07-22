@@ -2,6 +2,9 @@ local HL = HelloLog
 local Loot = {}
 HL.Loot = Loot
 
+-- Bare global is a CVar-gated deprecation shim since 1.15.9.
+local GetItemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
+
 local function escapePattern(s)
     return (s:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
 end

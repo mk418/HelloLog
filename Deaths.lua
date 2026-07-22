@@ -2,6 +2,12 @@ local HL = HelloLog
 local Deaths = {}
 HL.Deaths = Deaths
 
+-- Bare globals are CVar-gated deprecation shims since 1.15.9;
+-- C_CombatLog only exists from 1.15.9 on.
+local GetItemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
+local CombatLogGetCurrentEventInfo = C_CombatLog and C_CombatLog.GetCurrentEventInfo
+    or CombatLogGetCurrentEventInfo
+
 local OBJECT_TYPE_NPC  = COMBATLOG_OBJECT_TYPE_NPC      or 0x00000800
 local REACTION_HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE or 0x00000040
 

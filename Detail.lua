@@ -2,6 +2,10 @@ local HL = HelloLog
 local Detail = {}
 HL.Detail = Detail
 
+-- Bare global is a CVar-gated deprecation shim since 1.15.9.
+local GetCoinTextureString = C_CurrencyInfo and C_CurrencyInfo.GetCoinTextureString
+    or GetCoinTextureString
+
 local container, scroll, scrollChild, empty
 local mobRows = {}
 local repHeader

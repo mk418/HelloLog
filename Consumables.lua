@@ -2,6 +2,9 @@ local HL = HelloLog
 local Consumables = {}
 HL.Consumables = Consumables
 
+-- Bare global is a CVar-gated deprecation shim since 1.15.9.
+local GetItemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
+
 local ITEM_CLASS_CONSUMABLE = 0
 
 local snapshot = {}

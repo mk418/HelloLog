@@ -15,9 +15,12 @@ local function BuildLegacy(panel)
     subtitle:SetJustifyH("LEFT")
     subtitle:SetText("Per-zone session log of loot, gold, kills, and reputation.")
 
-    local check = CreateFrame("CheckButton", "HelloLogOptionsMinimapCheck", panel, "InterfaceOptionsCheckButtonTemplate")
+    -- InterfaceOptionsCheckButtonTemplate moved to DeprecatedTemplates.xml in
+    -- 1.15.9; UICheckButtonTemplate exists on every client version.
+    local check = CreateFrame("CheckButton", "HelloLogOptionsMinimapCheck", panel, "UICheckButtonTemplate")
     check:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", 0, -16)
-    _G[check:GetName() .. "Text"]:SetText("Show minimap icon")
+    local label = check.Text or _G[check:GetName() .. "Text"]
+    label:SetText("Show minimap icon")
     check:SetChecked(not HL.Minimap:IsHidden())
     check:SetScript("OnClick", function(self)
         HL.Minimap:SetHidden(not self:GetChecked())

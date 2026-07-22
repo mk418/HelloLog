@@ -2,6 +2,11 @@ local HL = HelloLog
 local Kills = {}
 HL.Kills = Kills
 
+-- Bare global is a CVar-gated deprecation shim since 1.15.9;
+-- C_CombatLog only exists from 1.15.9 on.
+local CombatLogGetCurrentEventInfo = C_CombatLog and C_CombatLog.GetCurrentEventInfo
+    or CombatLogGetCurrentEventInfo
+
 -- Affiliation: MINE | PARTY | RAID = 0x07
 local GROUP_AFFILIATION_MASK = 0x00000007
 local OBJECT_TYPE_NPC        = COMBATLOG_OBJECT_TYPE_NPC      or 0x00000800

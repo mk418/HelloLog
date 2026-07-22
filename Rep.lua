@@ -13,8 +13,8 @@ local function patternify(template)
     return "^" .. p .. "$"
 end
 
-local INCREASED = patternify(FACTION_STANDING_INCREASED or "Reputation with %s increased by %d.")
-local DECREASED = patternify(FACTION_STANDING_DECREASED or "Reputation with %s decreased by %d.")
+local INCREASED = patternify(FACTION_STANDING_INCREASED or "Your %s reputation has increased by %d.")
+local DECREASED = patternify(FACTION_STANDING_DECREASED or "Your %s reputation has decreased by %d.")
 
 local function recordRep(faction, delta)
     if not HL.Session:IsRecording() then return end
